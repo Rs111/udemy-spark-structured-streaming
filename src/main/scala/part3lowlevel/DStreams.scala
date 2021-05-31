@@ -9,6 +9,47 @@ import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import common._
 
+/*
+  Discretized Streams
+  - DStream is a never-ending sequence of RDDs
+    - each batch is an RDD of one or more partitions
+    - batches are triggered at the same time in the cluster (possible because nodes' clocks are synchronized with a network time protocol)
+    - i.e. a batch is across executors; each batch is all the partition blocks across executors between batch intervals
+      - e.g. first batch has 3 partitions; 2 in executor 1 and 1 in executor 2
+    - T0=steam starts, T1= first batch, T2 second batch, [] are partition blocks that are added to stream
+    - MX are the block intervals
+    - batchInterval: interval betwen TX, TX+1 (basically a poll duration)
+    - block interval: the interval inbetween which the partitions of the RDD will be created
+      - i.e. how often do we take our data and create a new partition block within the same microbatch
+      - batch interval must be a multiple of the block interval
+    - as new data comes in we keep on getting more partitions and batches
+    - the whole thing below is known as a DStream
+     T0        T1          T2
+     |          |          |
+    ----------------------------------------------
+    | []    []     []                             | executor 1
+    ----------------------------------------------
+    ----------------------------------------------
+    | []           []    []                       | executor 2
+    ----------------------------------------------
+     |    |     |      |   |
+     M0   M1    M2     M3  M4
+
+   - Essentially a distributed collection of elements of the same type
+    - functional operators (e.g. map, flatMap, reduce)
+    - access to each RDD which constitutes the stream
+    - some advanced operators
+   - DStream needs to be coupled with a receiver to perform computations
+    - one receiver per DStream
+    - receiver does the following:
+      - fetches data from the source
+      - sends data to Spark engine for processing
+      - creates blocks and trigger the time barriers above to create batches and partitions
+    - receiver is managed by the StreamingContext on the driver
+    - occupies one core on the machine! (very important to allocate enough cores on machines we run streams on)
+      - e.g. local[2]
+ */
+
 object DStreams {
 
   val spark = SparkSession.builder()
@@ -19,12 +60,12 @@ object DStreams {
   /*
     Spark Streaming Context = entry point to the DStreams API
     - needs the spark context
-    - a duration = batch interval
+    - a duration = batch interval; basically a poll duration
    */
   val ssc = new StreamingContext(spark.sparkContext, Seconds(1))
 
   /*
-    - define input sources by creating DStreams
+    - define input sources by creating DStreams (can create one or more)
     - define transformations on DStreams
     - call an action on DStreams
     - start ALL computations with ssc.start()
@@ -34,15 +75,17 @@ object DStreams {
    */
 
   def readFromSocket() = {
+    // distributed never ending collection of strings
     val socketStream: DStream[String] = ssc.socketTextStream("localhost", 12345)
 
     // transformation = lazy
     val wordsStream: DStream[String] = socketStream.flatMap(line => line.split(" "))
 
-    // action
-//    wordsStream.print()
+    // action; note: actions not triggered until we do ssc.start()
+    // wordsStream.print()
     wordsStream.saveAsTextFiles("src/main/resources/data/words/") // each folder = RDD = batch, each file = a partition of the RDD
 
+    // all dstreams that we define as dependant on ssc
     ssc.start()
     ssc.awaitTermination()
   }
@@ -68,7 +111,7 @@ object DStreams {
           |AAPL,Feb 1 2001,9.12
         """.stripMargin.trim)
 
-      writer.close()
+      writer.close() // flush away whatever buffers it may have
     }).start()
   }
 
@@ -79,7 +122,8 @@ object DStreams {
     val stocksFilePath = "src/main/resources/data/stocks"
 
     /*
-      ssc.textFileStream monitors a directory for NEW FILES
+      ssc.textFileStream monitors a directory for NEW FILES; won't read what's already there before you start app
+      - creating `createNewFile` to help us test
      */
     val textStream: DStream[String] = ssc.textFileStream(stocksFilePath)
 

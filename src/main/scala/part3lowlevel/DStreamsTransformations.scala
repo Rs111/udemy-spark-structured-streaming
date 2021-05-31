@@ -48,7 +48,7 @@ object DStreamsTransformations {
   def highIncomePeople() = readPeople().filter(_.salary > 80000)
 
   // count
-  def countPeople(): DStream[Long] = readPeople().count() // the number of entries in every batch
+  def countPeople(): DStream[Long] = readPeople().count() // the number of entries in every batch (by batch; does not count previous batches)
 
   // count by value, PER BATCH
   def countNames(): DStream[(String, Long)] = readPeople().map(_.firstName).countByValue()
@@ -62,7 +62,7 @@ object DStreamsTransformations {
     readPeople()
       .map(_.firstName)
       .map(name => (name, 1))
-      .reduceByKey((a, b) => a + b)
+      .reduceByKey((accumKeyCount, nextInt) => accumKeyCount + nextInt)
 
 
   // foreach rdd

@@ -6,10 +6,10 @@ import org.apache.spark.sql.functions._
 
 object SparkRecap {
 
-  // the entry point to the Spark structured API
+  // the entry point to the Spark structured API (consists of Spark SQL API and dataframe API)
   val spark = SparkSession.builder()
     .appName("Spark Recap")
-    .master("local[2]")
+    .master("local[2]") // [2] allocates two threads on our machine
     .getOrCreate()
 
   // read a DF

@@ -51,5 +51,8 @@ libraryDependencies ++= Seq(
 
   // kafka
   "org.apache.kafka" %% "kafka" % kafkaVersion,
-  "org.apache.kafka" % "kafka-streams" % kafkaVersion
+  "org.apache.kafka" % "kafka-streams" % kafkaVersion,
+
+  // spark avro
+  "org.apache.spark" %% "spark-avro" % "3.0.0"
 )

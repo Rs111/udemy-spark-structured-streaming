@@ -2,8 +2,12 @@ package part2structuredstreaming
 
 import org.apache.spark.sql.{DataFrame, Dataset, Encoders, SparkSession}
 import org.apache.spark.sql.functions._
-import common._
-
+import common._ // import pre-built schemas
+/*
+  Streaming datasets are TypeSafe Structured Streams
+  - note sure if the point below is still true
+  - note: lambda is opaque to spark: https://www.protechtraining.com/blog/post/6-steps-to-get-top-performance-from-the-changes-in-apache-spark-20-909
+ */
 object StreamingDatasets {
 
   val spark = SparkSession.builder()
@@ -16,7 +20,7 @@ object StreamingDatasets {
 
   def readCars(): Dataset[Car] = {
     // useful for DF -> DS transformations
-    val carEncoder = Encoders.product[Car]
+    val carEncoder = Encoders.product[Car] // no need for this, as imported spark implicits
 
     spark.readStream
       .format("socket")

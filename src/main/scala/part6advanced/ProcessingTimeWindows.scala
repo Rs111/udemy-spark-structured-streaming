@@ -3,6 +3,9 @@ package part6advanced
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 
+/*
+  In this section we will handle data based on the time that they arrive in spark, not when they were created
+ */
 
 object ProcessingTimeWindows {
 

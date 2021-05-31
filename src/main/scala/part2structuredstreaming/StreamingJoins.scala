@@ -27,13 +27,16 @@ object StreamingJoins {
   val guitaristsBands = guitarPlayers.join(bands, joinCondition, "inner")
   val bandsSchema = bands.schema
 
+  // intent is to pass JSON records into the stream, then deserialize it with the from_json function
   def joinStreamWithStatic() = {
     val streamedBandsDF = spark.readStream
       .format("socket")
       .option("host", "localhost")
       .option("port", 12345)
       .load() // a DF with a single column "value" of type String
-      .select(from_json(col("value"), bandsSchema).as("band"))
+      // this gives us a composite (struct) column
+      .select(from_json(col("value"), bandsSchema).as("band")) // creating a JSON column
+      // extract fields from composite column
       .selectExpr("band.id as id", "band.name as name", "band.hometown as hometown", "band.year as year")
 
     // join happens PER BATCH
@@ -41,8 +44,10 @@ object StreamingJoins {
 
     /*
       restricted joins:
-      - stream joining with static: RIGHT outer join/full outer join/right_semi not permitted
-      - static joining with streaming: LEFT outer join/full/left_semi not permitted
+      - stream (left) joining with static (right): RIGHT outer join, full outer join, right_semi, right_anti not permitted
+      - static joining with streaming: LEFT outer join/full/left_semi not permitted (basically same as above)
+      - I.e. if you have stream, it has to be the "main" table in the join
+      - can't take rows from static that do not have the corresponding join condition in streaming
      */
 
     streamedBandsGuitaristsDF.writeStream
@@ -51,6 +56,10 @@ object StreamingJoins {
       .start()
       .awaitTermination()
   }
+
+//  def main(args: Array[String]): Unit = {
+//    joinStreamWithStatic()
+//  }
 
   // since Spark 2.3 we have stream vs stream joins
   def joinStreamWithStream() = {
